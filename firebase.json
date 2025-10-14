@@ -1,1 +1,28 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"cliniqflow-cd4a7","appId":"1:919862981387:android:bf5fd2fa1f6e4c86c1e80e","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"cliniqflow-cd4a7","configurations":{"android":"1:919862981387:android:bf5fd2fa1f6e4c86c1e80e","ios":"1:919862981387:ios:04e87dad523ba5b7c1e80e","macos":"1:919862981387:ios:04e87dad523ba5b7c1e80e","web":"1:919862981387:web:a71310c49d3e7a7bc1e80e","windows":"1:919862981387:web:fa5045673eab19bcc1e80e"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "cliniqflow-cd4a7",
+          "appId": "1:919862981387:android:bf5fd2fa1f6e4c86c1e80e",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "cliniqflow-cd4a7",
+          "configurations": {
+            "android": "1:919862981387:android:bf5fd2fa1f6e4c86c1e80e",
+            "ios": "1:919862981387:ios:04e87dad523ba5b7c1e80e",
+            "macos": "1:919862981387:ios:04e87dad523ba5b7c1e80e",
+            "web": "1:919862981387:web:a71310c49d3e7a7bc1e80e",
+            "windows": "1:919862981387:web:fa5045673eab19bcc1e80e"
+          }
+        }
+      }
+    }
+  }
+}
