@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "919862981387",
+    "project_id": "cliniqflow-cd4a7",
+    "storage_bucket": "cliniqflow-cd4a7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:919862981387:android:bf5fd2fa1f6e4c86c1e80e",
+        "android_client_info": {
+          "package_name": "com.example.cliniqflow"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAgDmRPDabdpGzDrWn62Z71CNhx7830gG8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
