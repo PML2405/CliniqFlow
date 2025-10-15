@@ -3,9 +3,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'features/appointments/data/appointment_repository.dart';
+import 'features/appointments/presentation/appointment_schedule_controller.dart';
+import 'features/home/home_shell.dart';
 import 'features/patients/data/patient_repository.dart';
 import 'features/patients/presentation/patient_directory_controller.dart';
-import 'features/patients/presentation/patient_directory_page.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -23,9 +25,17 @@ void main() async {
         Provider<PatientRepository>(
           create: (_) => FirestorePatientRepository(firestore),
         ),
+        Provider<AppointmentRepository>(
+          create: (_) => FirestoreAppointmentRepository(firestore),
+        ),
         ChangeNotifierProvider<PatientDirectoryController>(
           create: (context) => PatientDirectoryController(
             context.read<PatientRepository>(),
+          )..initialize(),
+        ),
+        ChangeNotifierProvider<AppointmentScheduleController>(
+          create: (context) => AppointmentScheduleController(
+            context.read<AppointmentRepository>(),
           )..initialize(),
         ),
       ],
@@ -45,7 +55,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const PatientDirectoryPage(),
+      home: const HomeShell(),
     );
   }
 }
