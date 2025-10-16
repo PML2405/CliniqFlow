@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:cliniqflow/core/widgets/user_avatar.dart';
 import '../../patients/presentation/patient_directory_controller.dart';
 import '../models/appointment.dart';
 import 'appointment_editor_dialog.dart';
 import 'appointment_schedule_controller.dart';
 
 class AppointmentSchedulePage extends StatefulWidget {
-  const AppointmentSchedulePage({super.key, required this.clinicianName});
+  const AppointmentSchedulePage({
+    super.key,
+    required this.clinicianName,
+    this.clinicianPhotoUrl,
+    this.onAvatarTap,
+  });
 
   final String clinicianName;
+  final String? clinicianPhotoUrl;
+  final VoidCallback? onAvatarTap;
 
   @override
   State<AppointmentSchedulePage> createState() =>
@@ -678,6 +686,14 @@ class _AppointmentSchedulePageState extends State<AppointmentSchedulePage> {
       appBar: AppBar(
         title: Text('Welcome, ${widget.clinicianName}'),
         actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: UserAvatar(
+              displayName: widget.clinicianName,
+              photoUrl: widget.clinicianPhotoUrl,
+              onTap: widget.onAvatarTap,
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.calendar_month),
             tooltip: 'Calendar',

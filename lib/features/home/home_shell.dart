@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/models/clinician_profile.dart';
 import '../../core/preferences/app_preferences.dart';
 import '../appointments/presentation/appointment_schedule_page.dart';
 import '../patients/presentation/patient_directory_page.dart';
@@ -21,19 +22,23 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
-  late final ValueNotifier<String> _clinicianName;
+  late final ValueNotifier<ClinicianProfile> _clinicianProfile;
 
   @override
   void initState() {
     super.initState();
-    _clinicianName = ValueNotifier(widget.preferences.loadClinicianName());
-    _clinicianName.addListener(_persistClinicianName);
+    _clinicianProfile = ValueNotifier(
+      ClinicianProfile(
+        name: widget.preferences.loadClinicianName(),
+        photoUrl: widget.preferences.loadClinicianPhotoUrl(),
+      ),
+    )..addListener(_persistClinicianProfile);
   }
 
   @override
   void dispose() {
-    _clinicianName.removeListener(_persistClinicianName);
-    _clinicianName.dispose();
+    _clinicianProfile.removeListener(_persistClinicianProfile);
+    _clinicianProfile.dispose();
     super.dispose();
   }
 
@@ -49,13 +54,16 @@ class _HomeShellState extends State<HomeShell> {
         key: ValueKey(_index),
         index: _index,
         children: [
-          ValueListenableBuilder<String>(
-            valueListenable: _clinicianName,
-            builder: (context, name, _) => AppointmentSchedulePage(clinicianName: name),
+          ValueListenableBuilder<ClinicianProfile>(
+            valueListenable: _clinicianProfile,
+            builder: (context, profile, _) => AppointmentSchedulePage(
+              clinicianName: profile.name,
+              clinicianPhotoUrl: profile.photoUrl,
+            ),
           ),
           const PatientDirectoryPage(),
           SettingsPage(
-            nameNotifier: _clinicianName,
+            profileNotifier: _clinicianProfile,
             themeModeNotifier: widget.themeModeNotifier,
           ),
         ],
@@ -120,7 +128,9 @@ class _HomeShellState extends State<HomeShell> {
         ),
       ];
 
-  void _persistClinicianName() {
-    widget.preferences.saveClinicianName(_clinicianName.value);
+  void _persistClinicianProfile() {
+    final profile = _clinicianProfile.value;
+    widget.preferences.saveClinicianName(profile.name);
+    widget.preferences.saveClinicianPhotoUrl(profile.photoUrl);
   }
 }
