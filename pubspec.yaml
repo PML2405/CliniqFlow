@@ -39,6 +39,7 @@ dependencies:
   cloud_firestore: ^4.15.9
   google_sign_in: ^6.2.1  # Optional but recommended for Google Sign-In
   provider: ^6.1.2
+  shared_preferences: ^2.2.3
 
 dev_dependencies:
   flutter_test:

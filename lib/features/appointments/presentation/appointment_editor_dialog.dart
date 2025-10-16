@@ -25,9 +25,7 @@ class AppointmentEditorResult {
 enum AppointmentEditorAction { cancel, complete }
 
 class AppointmentEditorDelegate {
-  const AppointmentEditorDelegate({
-    this.existingAppointment,
-  });
+  const AppointmentEditorDelegate({this.existingAppointment});
 
   final Appointment? existingAppointment;
 
@@ -35,8 +33,7 @@ class AppointmentEditorDelegate {
 }
 
 class AppointmentEditorDialog extends StatefulWidget {
-  const AppointmentEditorDialog({
-    super.key,
+  const AppointmentEditorDialog._({
     required this.delegate,
     required this.patientController,
   });
@@ -49,17 +46,45 @@ class AppointmentEditorDialog extends StatefulWidget {
     required AppointmentEditorDelegate delegate,
     required PatientDirectoryController patientController,
   }) {
-    return showDialog<AppointmentEditorResult>(
-      context: context,
-      builder: (context) => AppointmentEditorDialog(
-        delegate: delegate,
-        patientController: patientController,
+    return Navigator.of(context).push<AppointmentEditorResult>(
+      MaterialPageRoute<AppointmentEditorResult>(
+        fullscreenDialog: true,
+        builder: (routeContext) => AppointmentEditorPage(
+          delegate: delegate,
+          patientController: patientController,
+        ),
       ),
     );
   }
 
   @override
-  State<AppointmentEditorDialog> createState() => _AppointmentEditorDialogState();
+  State<AppointmentEditorDialog> createState() =>
+      _AppointmentEditorDialogState();
+}
+
+class AppointmentEditorPage extends StatelessWidget {
+  const AppointmentEditorPage({
+    super.key,
+    required this.delegate,
+    required this.patientController,
+  });
+
+  final AppointmentEditorDelegate delegate;
+  final PatientDirectoryController patientController;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = delegate.isEditing ? 'Edit appointment' : 'Add appointment';
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: SafeArea(
+        child: AppointmentEditorDialog._(
+          delegate: delegate,
+          patientController: patientController,
+        ),
+      ),
+    );
+  }
 }
 
 class _AppointmentEditorDialogState extends State<AppointmentEditorDialog> {
@@ -78,21 +103,27 @@ class _AppointmentEditorDialogState extends State<AppointmentEditorDialog> {
   void initState() {
     super.initState();
     final appointment = widget.delegate.existingAppointment;
-    _purposeController =
-        TextEditingController(text: appointment?.purpose ?? '');
+    _purposeController = TextEditingController(
+      text: appointment?.purpose ?? '',
+    );
     _selectedDate = appointment?.start ?? DateTime.now();
-    _selectedTime = TimeOfDay.fromDateTime(appointment?.start ?? DateTime.now());
+    _selectedTime = TimeOfDay.fromDateTime(
+      appointment?.start ?? DateTime.now(),
+    );
     _durationMinutes = appointment?.durationMinutes ?? 30;
     if (appointment == null) {
-      _selectedPatient =
-          patientController.patients.isNotEmpty ? patientController.patients.first : null;
+      _selectedPatient = patientController.patients.isNotEmpty
+          ? patientController.patients.first
+          : null;
     } else {
       try {
-        _selectedPatient = patientController.patients
-            .firstWhere((patient) => patient.id == appointment.patientId);
+        _selectedPatient = patientController.patients.firstWhere(
+          (patient) => patient.id == appointment.patientId,
+        );
       } catch (_) {
-        _selectedPatient =
-            patientController.patients.isNotEmpty ? patientController.patients.first : null;
+        _selectedPatient = patientController.patients.isNotEmpty
+            ? patientController.patients.first
+            : null;
       }
     }
   }
@@ -105,40 +136,57 @@ class _AppointmentEditorDialogState extends State<AppointmentEditorDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.delegate.isEditing ? 'Edit appointment' : 'Add appointment'),
-      content: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildPatientSelector(context),
-              const SizedBox(height: 16),
-              _buildDatePicker(context),
-              const SizedBox(height: 16),
-              _buildTimePicker(context),
-              const SizedBox(height: 16),
-              _buildDurationField(),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _purposeController,
-                decoration: const InputDecoration(
-                  labelText: 'Purpose',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a purpose';
-                  }
-                  return null;
-                },
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          24,
+          24,
+          24 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildPatientSelector(context),
+                  const SizedBox(height: 16),
+                  _buildDatePicker(context),
+                  const SizedBox(height: 16),
+                  _buildTimePicker(context),
+                  const SizedBox(height: 16),
+                  _buildDurationField(),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _purposeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Purpose',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter a purpose';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  OverflowBar(
+                    alignment: MainAxisAlignment.end,
+                    spacing: 12,
+                    overflowSpacing: 12,
+                    children: _buildActions(context),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-      actions: _buildActions(context),
     );
   }
 
@@ -152,10 +200,8 @@ class _AppointmentEditorDialogState extends State<AppointmentEditorDialog> {
       ),
       items: patients
           .map(
-            (patient) => DropdownMenuItem(
-              value: patient,
-              child: Text(patient.fullName),
-            ),
+            (patient) =>
+                DropdownMenuItem(value: patient, child: Text(patient.fullName)),
           )
           .toList(growable: false),
       validator: (value) {
@@ -243,7 +289,11 @@ class _AppointmentEditorDialogState extends State<AppointmentEditorDialog> {
       ),
       FilledButton(
         onPressed: _isSubmitting ? null : () => _submit(context),
-        child: Text(_isSubmitting ? 'Saving…' : (isEditing ? 'Save changes' : 'Book appointment')),
+        child: Text(
+          _isSubmitting
+              ? 'Saving…'
+              : (isEditing ? 'Save changes' : 'Book appointment'),
+        ),
       ),
     ];
 
@@ -276,8 +326,9 @@ class _AppointmentEditorDialogState extends State<AppointmentEditorDialog> {
       return;
     }
     if (_selectedPatient == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Select a patient before saving')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select a patient before saving')),
+      );
       return;
     }
 

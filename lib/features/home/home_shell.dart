@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../../core/preferences/app_preferences.dart';
 import '../appointments/presentation/appointment_schedule_page.dart';
 import '../patients/presentation/patient_directory_page.dart';
+import '../settings/presentation/settings_page.dart';
 
 class HomeShell extends StatefulWidget {
-  const HomeShell({super.key});
+  const HomeShell({
+    super.key,
+    required this.themeModeNotifier,
+    required this.preferences,
+  });
+
+  final ValueNotifier<ThemeMode> themeModeNotifier;
+  final AppPreferences preferences;
 
   @override
   State<HomeShell> createState() => _HomeShellState();
@@ -12,25 +21,70 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
+  late final ValueNotifier<String> _clinicianName;
+
+  @override
+  void initState() {
+    super.initState();
+    _clinicianName = ValueNotifier(widget.preferences.loadClinicianName());
+    _clinicianName.addListener(_persistClinicianName);
+  }
+
+  @override
+  void dispose() {
+    _clinicianName.removeListener(_persistClinicianName);
+    _clinicianName.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final destinations = _destinations;
-    return Scaffold(
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 250),
-        child: IndexedStack(
-          key: ValueKey(_index),
-          index: _index,
-          children: const [
-            AppointmentSchedulePage(),
-            PatientDirectoryPage(),
+    final width = MediaQuery.of(context).size.width;
+    final useRail = width >= 900;
+    final extendRail = width >= 1200;
+
+    final content = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 250),
+      child: IndexedStack(
+        key: ValueKey(_index),
+        index: _index,
+        children: [
+          ValueListenableBuilder<String>(
+            valueListenable: _clinicianName,
+            builder: (context, name, _) => AppointmentSchedulePage(clinicianName: name),
+          ),
+          const PatientDirectoryPage(),
+          SettingsPage(
+            nameNotifier: _clinicianName,
+            themeModeNotifier: widget.themeModeNotifier,
+          ),
+        ],
+      ),
+    );
+
+    if (useRail) {
+      return Scaffold(
+        body: Row(
+          children: [
+            NavigationRail(
+              selectedIndex: _index,
+              destinations: _railDestinations,
+              onDestinationSelected: (value) => setState(() => _index = value),
+              labelType: extendRail ? NavigationRailLabelType.none : NavigationRailLabelType.all,
+              extended: extendRail,
+            ),
+            const VerticalDivider(width: 1),
+            Expanded(child: content),
           ],
         ),
-      ),
+      );
+    }
+
+    return Scaffold(
+      body: content,
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        destinations: destinations,
+        destinations: _destinations,
         onDestinationSelected: (value) => setState(() => _index = value),
       ),
     );
@@ -45,5 +99,28 @@ class _HomeShellState extends State<HomeShell> {
           icon: Icon(Icons.group),
           label: 'Patients',
         ),
+        NavigationDestination(
+          icon: Icon(Icons.settings),
+          label: 'Settings',
+        ),
       ];
+
+  List<NavigationRailDestination> get _railDestinations => const [
+        NavigationRailDestination(
+          icon: Icon(Icons.event),
+          label: Text('Schedule'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.group),
+          label: Text('Patients'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.settings),
+          label: Text('Settings'),
+        ),
+      ];
+
+  void _persistClinicianName() {
+    widget.preferences.saveClinicianName(_clinicianName.value);
+  }
 }
