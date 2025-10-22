@@ -63,10 +63,38 @@ class FirestorePatientRepository implements PatientRepository {
         : profile;
     final payload = effectiveProfile.copyWith(updatedAt: now).toMap();
     await _collection.doc(profile.id).update(payload);
+    await _updateAppointmentsForPatient(effectiveProfile, now);
   }
 
   @override
   Future<void> delete(String id) {
     return _collection.doc(id).delete();
+  }
+
+  Future<void> _updateAppointmentsForPatient(
+    PatientProfile profile,
+    DateTime timestamp,
+  ) async {
+    final query = await _firestore
+        .collection('appointments')
+        .where('patientId', isEqualTo: profile.id)
+        .get();
+
+    if (query.docs.isEmpty) {
+      return;
+    }
+
+    final batch = _firestore.batch();
+    final updatePayload = {
+      'patientUid': profile.patientUid,
+      'patientName': profile.fullName,
+      'updatedAt': Timestamp.fromDate(timestamp),
+    };
+
+    for (final doc in query.docs) {
+      batch.update(doc.reference, updatePayload);
+    }
+
+    await batch.commit();
   }
 }
