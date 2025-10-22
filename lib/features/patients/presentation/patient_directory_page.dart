@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/patient_profile.dart';
+import '../../appointments/data/appointment_repository.dart';
+import '../../appointments/models/appointment.dart';
+import '../../case_sheets/data/case_sheet_repository.dart';
+import '../../case_sheets/presentation/case_sheet_controller.dart';
+import '../../case_sheets/presentation/case_sheet_page.dart';
 import 'patient_directory_controller.dart';
 import 'patient_edit_page.dart';
 
-enum _PatientAction { edit, delete }
+enum _PatientAction { edit, delete, caseSheets }
 
 class PatientDirectoryPage extends StatefulWidget {
   const PatientDirectoryPage({super.key});
@@ -111,6 +116,9 @@ class _PatientDirectoryPageState extends State<PatientDirectoryPage> {
                   case _PatientAction.delete:
                     _confirmDelete(context, controller, patient);
                     break;
+                  case _PatientAction.caseSheets:
+                    _openCaseSheets(context, patient);
+                    break;
                 }
               },
               itemBuilder: (context) => const [
@@ -127,6 +135,14 @@ class _PatientDirectoryPageState extends State<PatientDirectoryPage> {
                   child: ListTile(
                     leading: Icon(Icons.delete_outline),
                     title: Text('Delete'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                PopupMenuItem(
+                  value: _PatientAction.caseSheets,
+                  child: ListTile(
+                    leading: Icon(Icons.description_outlined),
+                    title: Text('Case sheets'),
                     contentPadding: EdgeInsets.zero,
                   ),
                 ),
@@ -178,6 +194,40 @@ class _PatientDirectoryPageState extends State<PatientDirectoryPage> {
         ),
       );
     }
+  }
+
+  Future<void> _openCaseSheets(
+    BuildContext context,
+    PatientProfile patient,
+  ) async {
+    final repository = context.read<CaseSheetRepository>();
+    final appointmentRepository = context.read<AppointmentRepository>();
+    final controller = CaseSheetController(repository);
+
+    List<Appointment> appointments = const [];
+    try {
+      appointments = await appointmentRepository.fetchByPatient(
+        patientId: patient.id,
+        limit: 20,
+      );
+    } catch (_) {
+      appointments = const [];
+    }
+
+    if (context.mounted) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => CaseSheetPage(
+            controller: controller,
+            patientId: patient.id,
+            patient: patient,
+            availableAppointments: appointments,
+          ),
+        ),
+      );
+    }
+
+    controller.dispose();
   }
 
   Future<void> _confirmDelete(

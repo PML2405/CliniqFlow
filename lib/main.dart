@@ -3,12 +3,13 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'features/appointments/data/appointment_repository.dart';
 import 'core/preferences/app_preferences.dart';
+import 'features/appointments/data/appointment_repository.dart';
 import 'features/appointments/presentation/appointment_schedule_controller.dart';
 import 'features/home/home_shell.dart';
 import 'features/patients/data/patient_repository.dart';
 import 'features/patients/presentation/patient_directory_controller.dart';
+import 'features/case_sheets/data/case_sheet_repository.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -30,6 +31,9 @@ void main() async {
         ),
         Provider<AppointmentRepository>(
           create: (_) => FirestoreAppointmentRepository(firestore),
+        ),
+        Provider<CaseSheetRepository>(
+          create: (_) => FirestoreCaseSheetRepository(firestore),
         ),
         ChangeNotifierProvider<PatientDirectoryController>(
           create: (context) => PatientDirectoryController(

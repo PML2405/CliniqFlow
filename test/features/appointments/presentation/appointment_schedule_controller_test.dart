@@ -147,6 +147,24 @@ class FakeAppointmentRepository implements AppointmentRepository {
     _markCompleter = null;
     return Future.value();
   }
+
+  @override
+  Future<List<Appointment>> fetchByPatient({
+    required String patientId,
+    DateTime? since,
+    int limit = 20,
+  }) async {
+    final filtered = (_latest ?? [])
+        .where((appointment) {
+          final matchesPatient = appointment.patientId == patientId;
+          final matchesSince = since == null || appointment.start.isAfter(since) ||
+              appointment.start.isAtSameMomentAs(since);
+          return matchesPatient && matchesSince;
+        })
+        .take(limit)
+        .toList();
+    return filtered;
+  }
 }
 
 Appointment buildAppointment({
