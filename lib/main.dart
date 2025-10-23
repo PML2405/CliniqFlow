@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -6,7 +8,7 @@ import 'package:provider/provider.dart';
 import 'core/preferences/app_preferences.dart';
 import 'features/appointments/data/appointment_repository.dart';
 import 'features/appointments/presentation/appointment_schedule_controller.dart';
-import 'features/home/home_shell.dart';
+import 'features/auth/presentation/auth_wrapper.dart';
 import 'features/patients/data/patient_repository.dart';
 import 'features/patients/presentation/patient_directory_controller.dart';
 import 'features/case_sheets/data/case_sheet_repository.dart';
@@ -14,9 +16,17 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Initialize Firebase App Check for development
+  await FirebaseAppCheck.instance.activate(
+    androidProvider: AndroidProvider.debug,
+    appleProvider: AppleProvider.debug,
   );
+
+  // Set Firebase locale to prevent null locale warnings
+  await FirebaseAuth.instance.setLanguageCode('en');
+
   final firestore = FirebaseFirestore.instance;
 
   firestore.settings = const Settings(persistenceEnabled: true);
@@ -36,9 +46,9 @@ void main() async {
           create: (_) => FirestoreCaseSheetRepository(firestore),
         ),
         ChangeNotifierProvider<PatientDirectoryController>(
-          create: (context) => PatientDirectoryController(
-            context.read<PatientRepository>(),
-          )..initialize(),
+          create: (context) =>
+              PatientDirectoryController(context.read<PatientRepository>())
+                ..initialize(),
         ),
         ChangeNotifierProvider<AppointmentScheduleController>(
           create: (context) => AppointmentScheduleController(
@@ -105,8 +115,12 @@ class _MyAppState extends State<MyApp> {
           theme: ThemeData(
             useMaterial3: true,
             colorScheme: lightColorScheme,
-            appBarTheme: const AppBarTheme(surfaceTintColor: Colors.transparent),
-            cardTheme: const CardThemeData(surfaceTintColor: Colors.transparent),
+            appBarTheme: const AppBarTheme(
+              surfaceTintColor: Colors.transparent,
+            ),
+            cardTheme: const CardThemeData(
+              surfaceTintColor: Colors.transparent,
+            ),
             floatingActionButtonTheme: FloatingActionButtonThemeData(
               backgroundColor: lightColorScheme.secondary,
               foregroundColor: lightColorScheme.onSecondary,
@@ -115,15 +129,19 @@ class _MyAppState extends State<MyApp> {
           darkTheme: ThemeData(
             useMaterial3: true,
             colorScheme: darkColorScheme,
-            appBarTheme: const AppBarTheme(surfaceTintColor: Colors.transparent),
-            cardTheme: const CardThemeData(surfaceTintColor: Colors.transparent),
+            appBarTheme: const AppBarTheme(
+              surfaceTintColor: Colors.transparent,
+            ),
+            cardTheme: const CardThemeData(
+              surfaceTintColor: Colors.transparent,
+            ),
             floatingActionButtonTheme: FloatingActionButtonThemeData(
               backgroundColor: darkColorScheme.secondary,
               foregroundColor: darkColorScheme.onSecondary,
             ),
           ),
           themeMode: mode,
-          home: HomeShell(
+          home: AuthWrapper(
             themeModeNotifier: _themeMode,
             preferences: widget.preferences,
           ),

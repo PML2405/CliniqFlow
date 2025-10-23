@@ -63,7 +63,6 @@ class _HomeShellState extends State<HomeShell> {
           ),
           const PatientDirectoryPage(),
           SettingsPage(
-            profileNotifier: _clinicianProfile,
             themeModeNotifier: widget.themeModeNotifier,
           ),
         ],

@@ -217,7 +217,7 @@ class _PatientDirectoryPageState extends State<PatientDirectoryPage> {
     if (context.mounted) {
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => CaseSheetPage(
+          builder: (_) => _CaseSheetPageWrapper(
             controller: controller,
             patientId: patient.id,
             patient: patient,
@@ -226,8 +226,6 @@ class _PatientDirectoryPageState extends State<PatientDirectoryPage> {
         ),
       );
     }
-
-    controller.dispose();
   }
 
   Future<void> _confirmDelete(
@@ -297,6 +295,41 @@ class _EmptyState extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _CaseSheetPageWrapper extends StatefulWidget {
+  const _CaseSheetPageWrapper({
+    required this.controller,
+    required this.patientId,
+    required this.patient,
+    required this.availableAppointments,
+  });
+
+  final CaseSheetController controller;
+  final String patientId;
+  final PatientProfile patient;
+  final List<Appointment> availableAppointments;
+
+  @override
+  State<_CaseSheetPageWrapper> createState() => _CaseSheetPageWrapperState();
+}
+
+class _CaseSheetPageWrapperState extends State<_CaseSheetPageWrapper> {
+  @override
+  void dispose() {
+    widget.controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CaseSheetPage(
+      controller: widget.controller,
+      patientId: widget.patientId,
+      patient: widget.patient,
+      availableAppointments: widget.availableAppointments,
     );
   }
 }
