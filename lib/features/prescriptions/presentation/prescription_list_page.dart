@@ -1,8 +1,14 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../patients/models/patient_profile.dart';
 import '../models/prescription.dart';
+import '../services/prescription_pdf_service.dart';
 import 'prescription_controller.dart';
 import 'prescription_form_page.dart';
 
@@ -22,6 +28,8 @@ class PrescriptionListPage extends StatefulWidget {
 }
 
 class _PrescriptionListPageState extends State<PrescriptionListPage> {
+  final _pdfService = PrescriptionPdfService();
+
   @override
   void initState() {
     super.initState();
@@ -119,6 +127,14 @@ class _PrescriptionListPageState extends State<PrescriptionListPage> {
             Navigator.pop(context);
             _deletePrescription(context, prescription);
           },
+          onPrint: () {
+            Navigator.pop(context);
+            _printPrescription(context, prescription);
+          },
+          onShare: () {
+            Navigator.pop(context);
+            _sharePrescription(context, prescription);
+          },
         ),
       ),
     );
@@ -191,6 +207,57 @@ class _PrescriptionListPageState extends State<PrescriptionListPage> {
             ),
           );
         }
+      }
+    }
+  }
+
+  Future<void> _printPrescription(
+    BuildContext context,
+    Prescription prescription,
+  ) async {
+    try {
+      final pdfBytes = await _pdfService.generatePrescriptionPdf(prescription);
+      await Printing.layoutPdf(
+        onLayout: (format) async => pdfBytes,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to print prescription: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _sharePrescription(
+    BuildContext context,
+    Prescription prescription,
+  ) async {
+    try {
+      final pdfBytes = await _pdfService.generatePrescriptionPdf(prescription);
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'prescription_${prescription.patientUid}_'
+          '${DateFormat('yyyyMMdd').format(prescription.prescriptionDate)}.pdf';
+      final file = File('${tempDir.path}/$fileName');
+      await file.writeAsBytes(pdfBytes);
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        subject: 'Prescription for ${prescription.patientName}',
+        text: 'Prescription from ${prescription.doctorName} dated '
+            '${DateFormat.yMMMd().format(prescription.prescriptionDate)}',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to share prescription: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -294,12 +361,16 @@ class _PrescriptionDetailsSheet extends StatelessWidget {
     required this.scrollController,
     required this.onEdit,
     required this.onDelete,
+    required this.onPrint,
+    required this.onShare,
   });
 
   final Prescription prescription;
   final ScrollController scrollController;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onPrint;
+  final VoidCallback onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -382,12 +453,32 @@ class _PrescriptionDetailsSheet extends StatelessWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
+                        onPressed: onPrint,
+                        icon: const Icon(Icons.print),
+                        label: const Text('Print'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: onShare,
+                        icon: const Icon(Icons.share),
+                        label: const Text('Share'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
                         onPressed: onEdit,
                         icon: const Icon(Icons.edit),
                         label: const Text('Edit'),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: FilledButton.icon(
                         onPressed: onDelete,
