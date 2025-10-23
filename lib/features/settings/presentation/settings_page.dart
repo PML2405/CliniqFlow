@@ -436,7 +436,8 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                             height: 120,
                             width: 120,
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surfaceVariant,
+                              color:
+                                  Theme.of(context).colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Icon(Icons.image_not_supported),
@@ -448,7 +449,9 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                         height: 120,
                         width: 120,
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceVariant,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(Icons.photo_camera),
