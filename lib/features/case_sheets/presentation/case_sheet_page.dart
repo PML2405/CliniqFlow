@@ -1,11 +1,15 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../appointments/models/appointment.dart';
 import '../../patients/models/patient_profile.dart';
+import '../../prescriptions/data/prescription_repository.dart';
+import '../../prescriptions/presentation/prescription_controller.dart';
+import '../../prescriptions/presentation/prescription_form_page.dart';
 import '../models/case_sheet.dart';
 import 'case_sheet_controller.dart';
 
@@ -113,6 +117,7 @@ class _CaseSheetPageState extends State<CaseSheetPage> {
                   onAddAttachment: () => _showAttachmentDialog(context),
                   onDeleteAttachment: (attachment) =>
                       _showDeleteAttachmentDialog(context, attachment),
+                  onCreatePrescription: () => _navigateToPrescriptionForm(context, selected),
                 ),
               ),
             ],
@@ -438,6 +443,32 @@ class _CaseSheetPageState extends State<CaseSheetPage> {
     }
   }
 
+  Future<void> _navigateToPrescriptionForm(
+    BuildContext context,
+    CaseSheet caseSheet,
+  ) async {
+    final firestore = FirebaseFirestore.instance;
+    final prescriptionController = PrescriptionController(
+      FirestorePrescriptionRepository(firestore),
+    );
+
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => PrescriptionFormPage(
+          controller: prescriptionController,
+          patient: widget.patient,
+          caseSheetId: caseSheet.id,
+        ),
+      ),
+    );
+
+    prescriptionController.dispose();
+
+    if (result == true && context.mounted) {
+      // Prescription was created successfully, snackbar already shown
+    }
+  }
+
   String _inferContentType(PlatformFile file) {
     final extension = file.extension?.toLowerCase();
     if (extension == null) {
@@ -727,6 +758,7 @@ class _CaseSheetDetails extends StatelessWidget {
     required this.onRecordConsent,
     required this.onAddAttachment,
     required this.onDeleteAttachment,
+    required this.onCreatePrescription,
   });
 
   final CaseSheet sheet;
@@ -735,6 +767,7 @@ class _CaseSheetDetails extends StatelessWidget {
   final VoidCallback onRecordConsent;
   final VoidCallback onAddAttachment;
   final void Function(CaseSheetAttachment) onDeleteAttachment;
+  final VoidCallback onCreatePrescription;
 
   @override
   Widget build(BuildContext context) {
@@ -779,6 +812,12 @@ class _CaseSheetDetails extends StatelessWidget {
                   onPressed: isSaving ? null : onAddAttachment,
                   icon: const Icon(Icons.attachment),
                   label: const Text('Add attachment'),
+                ),
+                FilledButton.tonalIcon(
+                  key: const Key('createPrescriptionButton'),
+                  onPressed: isSaving ? null : onCreatePrescription,
+                  icon: const Icon(Icons.medication),
+                  label: const Text('Create prescription'),
                 ),
               ],
             ),

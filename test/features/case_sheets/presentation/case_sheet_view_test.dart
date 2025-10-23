@@ -126,14 +126,17 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
       verify(() => controller.initialize('patient-1')).called(1);
       expect(find.text('Case Sheets'), findsOneWidget);
       expect(find.text('Dr. Smith'), findsWidgets);
       expect(find.text('Pain'), findsWidgets);
-      expect(find.text('Fillings'), findsWidgets);
-      expect(find.textContaining('Linked appointment'), findsOneWidget);
-      expect(find.textContaining('Checkup'), findsOneWidget);
+      
+      // Check that treatment plan exists (may need scrolling to see)
+      expect(find.text('Fillings', skipOffstage: false), findsWidgets);
+      expect(find.textContaining('Linked appointment', skipOffstage: false), findsOneWidget);
+      expect(find.textContaining('Checkup', skipOffstage: false), findsOneWidget);
     });
 
     testWidgets('shows loading indicator when state is loading', (tester) async {
