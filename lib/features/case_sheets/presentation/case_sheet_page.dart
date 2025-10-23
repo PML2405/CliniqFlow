@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../appointments/models/appointment.dart';
@@ -110,6 +111,8 @@ class _CaseSheetPageState extends State<CaseSheetPage> {
                   appointment: linkedAppointment,
                   onRecordConsent: () => _showConsentDialog(context),
                   onAddAttachment: () => _showAttachmentDialog(context),
+                  onDeleteAttachment: (attachment) =>
+                      _showDeleteAttachmentDialog(context, attachment),
                 ),
               ),
             ],
@@ -314,134 +317,154 @@ class _CaseSheetPageState extends State<CaseSheetPage> {
 
   Future<void> _showAttachmentDialog(BuildContext context) async {
     final controller = widget.controller;
-    final fileNameController = TextEditingController();
-    final contentTypeController = TextEditingController(text: 'image/png');
-    final dataController = TextEditingController();
-    final samples = <_AttachmentSample>[
-      _AttachmentSample(
-        key: 'photo',
-        label: 'Use clinical photo sample',
-        fileName: 'xray_sample.png',
-        contentType: 'image/png',
-        base64Data: base64Encode(utf8.encode('sample_png_bytes')),
-      ),
-      _AttachmentSample(
-        key: 'document',
-        label: 'Use consent form (PDF sample)',
-        fileName: 'consent_sample.pdf',
-        contentType: 'application/pdf',
-        base64Data: base64Encode(utf8.encode('sample_pdf_bytes')),
-      ),
-    ];
 
-    final result = await showDialog<bool>(
+    final result = await showDialog<_PickedAttachment>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Upload attachment'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Quick actions',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: samples
-                      .map(
-                        (sample) => FilledButton.tonal(
-                          key: Key('attachmentSampleButton_${sample.key}'),
-                          onPressed: () {
-                            fileNameController.text = sample.fileName;
-                            contentTypeController.text = sample.contentType;
-                            dataController.text = sample.base64Data;
-                          },
-                          child: Text(sample.label),
-                        ),
-                      )
-                      .toList(),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  key: const Key('attachmentFileNameField'),
-                  controller: fileNameController,
-                  decoration: const InputDecoration(labelText: 'File name'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  key: const Key('attachmentContentTypeField'),
-                  controller: contentTypeController,
-                  decoration: const InputDecoration(labelText: 'Content type'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  key: const Key('attachmentDataField'),
-                  controller: dataController,
-                  decoration: const InputDecoration(
-                    labelText: 'File data (Base64 or text)',
-                    helperText: 'Paste Base64 data or use a quick action above',
-                  ),
-                  maxLines: 5,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              key: const Key('attachmentSubmitButton'),
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Upload'),
-            ),
-          ],
+        return _AttachmentPickerDialog(
+          onPickFile: () async {
+            final pickerResult = await FilePicker.platform.pickFiles(
+              type: FileType.any,
+              allowMultiple: false,
+              withData: true,
+            );
+
+            if (pickerResult == null || pickerResult.files.isEmpty) {
+              return null;
+            }
+
+            final pickedFile = pickerResult.files.first;
+            final bytes = pickedFile.bytes;
+            if (bytes == null) {
+              return null;
+            }
+
+            return _PickedAttachment(
+              fileName: pickedFile.name,
+              contentType: _inferContentType(pickedFile),
+              bytes: bytes,
+            );
+          },
+          onPickSample: (sample) {
+            final bytes = base64Decode(sample.base64Data);
+            return _PickedAttachment(
+              fileName: sample.fileName,
+              contentType: sample.contentType,
+              bytes: bytes,
+            );
+          },
         );
       },
     );
 
-    if (result == true) {
-      final fileName = fileNameController.text.trim().isEmpty
-          ? 'attachment-${DateTime.now().millisecondsSinceEpoch}'
-          : fileNameController.text.trim();
-      final contentType = contentTypeController.text.trim().isEmpty
-          ? 'application/octet-stream'
-          : contentTypeController.text.trim();
-      final rawData = dataController.text.trim();
-      if (rawData.isEmpty) {
-        if (context.mounted) {
-          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-            const SnackBar(content: Text('Attachment data is required. Paste Base64 or choose a sample.')),
-          );
-        }
-        return;
-      }
-
-      Uint8List bytes;
-      try {
-        bytes = base64Decode(rawData);
-      } catch (_) {
-        bytes = Uint8List.fromList(utf8.encode(rawData));
-      }
-
-      await controller.uploadAttachment(
-        fileName: fileName,
-        contentType: contentType,
-        bytes: bytes,
-      );
+    if (result == null) {
+      return;
     }
 
-    fileNameController.dispose();
-    contentTypeController.dispose();
-    dataController.dispose();
+    try {
+      await controller.uploadAttachment(
+        fileName: result.fileName,
+        contentType: result.contentType,
+        bytes: result.bytes,
+      );
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${result.fileName} uploaded successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload file: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showDeleteAttachmentDialog(
+    BuildContext context,
+    CaseSheetAttachment attachment,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete attachment'),
+        content: Text('Are you sure you want to delete ${attachment.fileName}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        await widget.controller.removeAttachment(attachment);
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${attachment.fileName} deleted successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete attachment: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  String _inferContentType(PlatformFile file) {
+    final extension = file.extension?.toLowerCase();
+    if (extension == null) {
+      return 'application/octet-stream';
+    }
+
+    const mapping = {
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'gif': 'image/gif',
+      'webp': 'image/webp',
+      'pdf': 'application/pdf',
+      'csv': 'text/csv',
+      'txt': 'text/plain',
+      'json': 'application/json',
+      'mp4': 'video/mp4',
+      'mov': 'video/quicktime',
+      'mp3': 'audio/mpeg',
+      'wav': 'audio/wav',
+      'doc': 'application/msword',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'xls': 'application/vnd.ms-excel',
+      'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    };
+
+    return mapping[extension] ?? 'application/octet-stream';
   }
 
   Appointment? _findAppointment(String appointmentId) {
@@ -456,6 +479,166 @@ class _CaseSheetPageState extends State<CaseSheetPage> {
     return null;
   }
 }
+
+class _PickedAttachment {
+  const _PickedAttachment({
+    required this.fileName,
+    required this.contentType,
+    required this.bytes,
+  });
+
+  final String fileName;
+  final String contentType;
+  final Uint8List bytes;
+}
+
+class _AttachmentPickerDialog extends StatefulWidget {
+  const _AttachmentPickerDialog({
+    required this.onPickFile,
+    required this.onPickSample,
+  });
+
+  final Future<_PickedAttachment?> Function() onPickFile;
+  final _PickedAttachment? Function(_AttachmentSample sample) onPickSample;
+
+  @override
+  State<_AttachmentPickerDialog> createState() => _AttachmentPickerDialogState();
+}
+
+class _AttachmentPickerDialogState extends State<_AttachmentPickerDialog> {
+  _PickedAttachment? _pickedAttachment;
+  bool _isPicking = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return AlertDialog(
+      title: const Text('Upload attachment'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            FilledButton.icon(
+              key: const Key('attachmentPickFileButton'),
+              onPressed: _isPicking
+                  ? null
+                  : () async {
+                      setState(() => _isPicking = true);
+                      try {
+                        final picked = await widget.onPickFile();
+                        if (picked != null) {
+                          setState(() => _pickedAttachment = picked);
+                        }
+                      } finally {
+                        if (mounted) {
+                          setState(() => _isPicking = false);
+                        }
+                      }
+                    },
+              icon: _isPicking
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.attach_file),
+              label: Text(_isPicking ? 'Selecting…' : 'Choose file'),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Quick samples',
+              style: theme.textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _attachmentSamples
+                  .map(
+                    (sample) => FilledButton.tonal(
+                      key: Key('attachmentSampleButton_${sample.key}'),
+                      onPressed: () {
+                        final picked = widget.onPickSample(sample);
+                        setState(() => _pickedAttachment = picked);
+                      },
+                      child: Text(sample.label),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 16),
+            if (_pickedAttachment != null)
+              _AttachmentPreview(attachment: _pickedAttachment!),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          key: const Key('attachmentSubmitButton'),
+          onPressed: _pickedAttachment == null
+              ? null
+              : () => Navigator.of(context).pop(_pickedAttachment),
+          child: const Text('Upload'),
+        ),
+      ],
+    );
+  }
+}
+
+class _AttachmentPreview extends StatelessWidget {
+  const _AttachmentPreview({required this.attachment});
+
+  final _PickedAttachment attachment;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sizeInKb = attachment.bytes.lengthInBytes / 1024;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              attachment.fileName,
+              style: theme.textTheme.titleSmall,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${attachment.contentType} • ${sizeInKb.toStringAsFixed(1)} KB',
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+const _attachmentSamples = <_AttachmentSample>[
+  _AttachmentSample(
+    key: 'photo',
+    label: 'Use clinical photo sample',
+    fileName: 'xray_sample.png',
+    contentType: 'image/png',
+    base64Data: 'c2FtcGxlX3BuZ19ieXRlcw==',
+  ),
+  _AttachmentSample(
+    key: 'document',
+    label: 'Use consent form (PDF sample)',
+    fileName: 'consent_sample.pdf',
+    contentType: 'application/pdf',
+    base64Data: 'c2FtcGxlX3BkZl9ieXRlcw==',
+  ),
+];
 
 class _AttachmentSample {
   const _AttachmentSample({
@@ -543,6 +726,7 @@ class _CaseSheetDetails extends StatelessWidget {
     required this.appointment,
     required this.onRecordConsent,
     required this.onAddAttachment,
+    required this.onDeleteAttachment,
   });
 
   final CaseSheet sheet;
@@ -550,6 +734,7 @@ class _CaseSheetDetails extends StatelessWidget {
   final Appointment? appointment;
   final VoidCallback onRecordConsent;
   final VoidCallback onAddAttachment;
+  final void Function(CaseSheetAttachment) onDeleteAttachment;
 
   @override
   Widget build(BuildContext context) {
@@ -654,7 +839,27 @@ class _CaseSheetDetails extends StatelessWidget {
                           children: [
                             const Icon(Icons.attachment, size: 16),
                             const SizedBox(width: 8),
-                            Expanded(child: Text(attachment.fileName)),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(attachment.fileName),
+                                  if (attachment.sizeBytes != null)
+                                    Text(
+                                      '${(attachment.sizeBytes! / 1024).toStringAsFixed(1)} KB',
+                                      style: theme.textTheme.bodySmall,
+                                    ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              key: Key('deleteAttachment_${attachment.id}'),
+                              icon: const Icon(Icons.delete_outline, size: 20),
+                              onPressed: isSaving
+                                  ? null
+                                  : () => onDeleteAttachment(attachment),
+                              tooltip: 'Delete attachment',
+                            ),
                           ],
                         ),
                       ),

@@ -256,21 +256,20 @@ void main() {
       await tester.pump();
       expect(find.byType(AlertDialog), findsOneWidget);
 
-      await tester.enterText(find.byKey(const Key('attachmentFileNameField')), ' xray.png ');
-      await tester.enterText(find.byKey(const Key('attachmentContentTypeField')), ' image/png ');
-      await tester.enterText(find.byKey(const Key('attachmentDataField')), 'test-bytes');
+      // Use sample attachment since we can't mock FilePicker in widget tests
+      await tester.tap(find.byKey(const Key('attachmentSampleButton_photo')));
+      await tester.pump();
 
       await tester.tap(find.byKey(const Key('attachmentSubmitButton')));
       await tester.pump();
 
-      final uploadedBytes = verify(
+      verify(
         () => controller.uploadAttachment(
-          fileName: 'xray.png',
+          fileName: 'xray_sample.png',
           contentType: 'image/png',
-          bytes: captureAny(named: 'bytes'),
+          bytes: any(named: 'bytes'),
         ),
-      ).captured.single as Uint8List;
-      expect(String.fromCharCodes(uploadedBytes), 'test-bytes');
+      ).called(1);
     });
 
     testWidgets('quick action fills sample attachment data', (tester) async {

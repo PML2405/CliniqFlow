@@ -170,6 +170,43 @@ class CaseSheetController extends ChangeNotifier {
     } catch (error) {
       _errorMessage = error.toString();
       _setState(CaseSheetViewState.error, notify: true);
+      rethrow;
+    }
+  }
+
+  Future<void> removeAttachment(CaseSheetAttachment attachment) async {
+    final current = _selectedSheet;
+    if (current == null || current.id.isEmpty) {
+      return;
+    }
+
+    _setState(CaseSheetViewState.saving);
+
+    try {
+      await _repository.deleteAttachment(
+        sheet: current,
+        attachment: attachment,
+      );
+
+      final updatedAttachments = current.attachments
+          .where((a) => a.id != attachment.id)
+          .toList();
+
+      final updatedSheet = current.copyWith(
+        attachments: updatedAttachments,
+        updatedAt: DateTime.now(),
+      );
+
+      _caseSheets = _caseSheets
+          .map((sheet) => sheet.id == updatedSheet.id ? updatedSheet : sheet)
+          .toList(growable: false);
+      _selectedSheet = updatedSheet;
+      _errorMessage = null;
+      _setState(CaseSheetViewState.idle, notify: true);
+    } catch (error) {
+      _errorMessage = error.toString();
+      _setState(CaseSheetViewState.error, notify: true);
+      rethrow;
     }
   }
 

@@ -46,6 +46,11 @@ abstract class CaseSheetRepository {
     required String contentType,
     required Uint8List bytes,
   });
+
+  Future<void> deleteAttachment({
+    required CaseSheet sheet,
+    required CaseSheetAttachment attachment,
+  });
 }
 
 class FirestoreCaseSheetRepository implements CaseSheetRepository {
@@ -175,5 +180,21 @@ class FirestoreCaseSheetRepository implements CaseSheetRepository {
     await replaceAttachments(sheet: sheet, attachments: updatedAttachments);
 
     return attachment;
+  }
+
+  @override
+  Future<void> deleteAttachment({
+    required CaseSheet sheet,
+    required CaseSheetAttachment attachment,
+  }) async {
+    // Delete from storage
+    await _storage.deleteAttachment(attachment);
+
+    // Update Firestore document
+    final updatedAttachments = sheet.attachments
+        .where((a) => a.id != attachment.id)
+        .toList();
+
+    await replaceAttachments(sheet: sheet, attachments: updatedAttachments);
   }
 }
