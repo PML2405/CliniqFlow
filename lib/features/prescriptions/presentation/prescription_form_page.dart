@@ -227,6 +227,12 @@ class _PrescriptionFormPageState extends State<PrescriptionFormPage> {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter doctor name';
                 }
+                if (value.trim().length < 3) {
+                  return 'Doctor name must be at least 3 characters';
+                }
+                if (value.trim().length > 100) {
+                  return 'Doctor name must be less than 100 characters';
+                }
                 return null;
               },
               enabled: !isEditing,
@@ -362,9 +368,16 @@ class _DrugFormCard extends StatelessWidget {
                 border: OutlineInputBorder(),
                 hintText: 'e.g., Amoxicillin',
               ),
+              textCapitalization: TextCapitalization.words,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter drug name';
+                }
+                if (value.trim().length < 2) {
+                  return 'Drug name must be at least 2 characters';
+                }
+                if (value.trim().length > 200) {
+                  return 'Drug name must be less than 200 characters';
                 }
                 return null;
               },
@@ -381,6 +394,9 @@ class _DrugFormCard extends StatelessWidget {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter dosage';
                 }
+                if (value.trim().length > 50) {
+                  return 'Dosage must be less than 50 characters';
+                }
                 return null;
               },
             ),
@@ -392,9 +408,13 @@ class _DrugFormCard extends StatelessWidget {
                 border: OutlineInputBorder(),
                 hintText: 'e.g., Twice daily',
               ),
+              textCapitalization: TextCapitalization.sentences,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter frequency';
+                }
+                if (value.trim().length > 100) {
+                  return 'Frequency must be less than 100 characters';
                 }
                 return null;
               },
@@ -411,6 +431,9 @@ class _DrugFormCard extends StatelessWidget {
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter duration';
                 }
+                if (value.trim().length > 50) {
+                  return 'Duration must be less than 50 characters';
+                }
                 return null;
               },
             ),
@@ -422,7 +445,15 @@ class _DrugFormCard extends StatelessWidget {
                 border: OutlineInputBorder(),
                 hintText: 'e.g., Take with food',
               ),
-              maxLines: 2,
+              textCapitalization: TextCapitalization.sentences,
+              maxLines: 3,
+              maxLength: 500,
+              validator: (value) {
+                if (value != null && value.trim().length > 500) {
+                  return 'Notes must be less than 500 characters';
+                }
+                return null;
+              },
             ),
           ],
         ),

@@ -29,6 +29,7 @@ class PrescriptionListPage extends StatefulWidget {
 
 class _PrescriptionListPageState extends State<PrescriptionListPage> {
   final _pdfService = PrescriptionPdfService();
+  bool _isGeneratingPdf = false;
 
   @override
   void initState() {
@@ -38,22 +39,45 @@ class _PrescriptionListPageState extends State<PrescriptionListPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Prescriptions'),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        key: const Key('createPrescriptionButton'),
-        icon: const Icon(Icons.add),
-        label: const Text('New prescription'),
-        onPressed: () => _navigateToCreatePrescription(context),
-      ),
-      body: ListenableBuilder(
-        listenable: widget.controller,
-        builder: (context, _) {
-          return _buildContent();
-        },
-      ),
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            title: const Text('Prescriptions'),
+          ),
+          floatingActionButton: FloatingActionButton.extended(
+            key: const Key('createPrescriptionButton'),
+            icon: const Icon(Icons.add),
+            label: const Text('New prescription'),
+            onPressed: () => _navigateToCreatePrescription(context),
+          ),
+          body: ListenableBuilder(
+            listenable: widget.controller,
+            builder: (context, _) {
+              return _buildContent();
+            },
+          ),
+        ),
+        if (_isGeneratingPdf)
+          Container(
+            color: Colors.black54,
+            child: const Center(
+              child: Card(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Generating PDF...'),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -215,6 +239,7 @@ class _PrescriptionListPageState extends State<PrescriptionListPage> {
     BuildContext context,
     Prescription prescription,
   ) async {
+    setState(() => _isGeneratingPdf = true);
     try {
       final pdfBytes = await _pdfService.generatePrescriptionPdf(prescription);
       await Printing.layoutPdf(
@@ -229,6 +254,10 @@ class _PrescriptionListPageState extends State<PrescriptionListPage> {
           ),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() => _isGeneratingPdf = false);
+      }
     }
   }
 
@@ -236,6 +265,7 @@ class _PrescriptionListPageState extends State<PrescriptionListPage> {
     BuildContext context,
     Prescription prescription,
   ) async {
+    setState(() => _isGeneratingPdf = true);
     try {
       final pdfBytes = await _pdfService.generatePrescriptionPdf(prescription);
       final tempDir = await getTemporaryDirectory();
@@ -258,6 +288,10 @@ class _PrescriptionListPageState extends State<PrescriptionListPage> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isGeneratingPdf = false);
       }
     }
   }
