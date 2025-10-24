@@ -197,17 +197,20 @@ class _PatientEditPageState extends State<PatientEditPage> {
                 _buildTextField(
                   controller: _emergencyNameController,
                   label: 'Name',
+                  validator: _required,
                   textInputAction: TextInputAction.next,
                 ),
                 _buildTextField(
                   controller: _emergencyRelationController,
                   label: 'Relation',
+                  validator: _required,
                   textInputAction: TextInputAction.next,
                 ),
                 _buildTextField(
                   controller: _emergencyMobileController,
                   label: 'Mobile phone',
                   keyboardType: TextInputType.phone,
+                  validator: _required,
                   textInputAction: TextInputAction.next,
                 ),
                 _buildTextField(
@@ -221,21 +224,25 @@ class _PatientEditPageState extends State<PatientEditPage> {
                 _buildTextField(
                   controller: _referredByController,
                   label: 'Referred by',
+                  validator: _required,
                   textInputAction: TextInputAction.next,
                 ),
                 _buildTextField(
                   controller: _generalHistoryController,
                   label: 'General history',
+                  validator: _required,
                   maxLines: 3,
                 ),
                 _buildTextField(
                   controller: _allergiesController,
                   label: 'Allergies',
+                  validator: _required,
                   maxLines: 2,
                 ),
                 _buildTextField(
                   controller: _medicationsController,
                   label: 'Current medications',
+                  validator: _required,
                   maxLines: 2,
                 ),
                 _buildTextField(
@@ -245,6 +252,7 @@ class _PatientEditPageState extends State<PatientEditPage> {
                 _buildTextField(
                   controller: _pastHistoryController,
                   label: 'Past health history',
+                  validator: _required,
                   maxLines: 3,
                 ),
                 const SizedBox(height: 24),
