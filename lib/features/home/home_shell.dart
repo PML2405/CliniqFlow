@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/models/clinician_profile.dart';
@@ -23,20 +26,28 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
   late final ValueNotifier<ClinicianProfile> _clinicianProfile;
+  StreamSubscription<User?>? _authSubscription;
 
   @override
   void initState() {
     super.initState();
-    _clinicianProfile = ValueNotifier(
-      ClinicianProfile(
-        name: widget.preferences.loadClinicianName(),
-        photoUrl: widget.preferences.loadClinicianPhotoUrl(),
-      ),
-    )..addListener(_persistClinicianProfile);
+    final initialProfile = _resolveProfile(FirebaseAuth.instance.currentUser);
+
+    _clinicianProfile = ValueNotifier(initialProfile)
+      ..addListener(_persistClinicianProfile);
+
+    _authSubscription = FirebaseAuth.instance.userChanges().listen((user) {
+      final nextProfile = _resolveProfile(user);
+      final current = _clinicianProfile.value;
+      if (current.name != nextProfile.name || current.photoUrl != nextProfile.photoUrl) {
+        _clinicianProfile.value = nextProfile;
+      }
+    });
   }
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     _clinicianProfile.removeListener(_persistClinicianProfile);
     _clinicianProfile.dispose();
     super.dispose();
@@ -63,7 +74,6 @@ class _HomeShellState extends State<HomeShell> {
           ),
           const PatientDirectoryPage(),
           SettingsPage(
-            profileNotifier: _clinicianProfile,
             themeModeNotifier: widget.themeModeNotifier,
           ),
         ],
@@ -132,5 +142,22 @@ class _HomeShellState extends State<HomeShell> {
     final profile = _clinicianProfile.value;
     widget.preferences.saveClinicianName(profile.name);
     widget.preferences.saveClinicianPhotoUrl(profile.photoUrl);
+  }
+
+  ClinicianProfile _resolveProfile(User? user) {
+    final fallbackName = widget.preferences.loadClinicianName();
+    final fallbackPhoto = widget.preferences.loadClinicianPhotoUrl();
+
+    final displayName = user?.displayName?.trim();
+    final resolvedName = (displayName != null && displayName.isNotEmpty)
+        ? displayName
+        : fallbackName;
+
+    final resolvedPhoto = user?.photoURL ?? fallbackPhoto;
+
+    return ClinicianProfile(
+      name: resolvedName,
+      photoUrl: resolvedPhoto,
+    );
   }
 }

@@ -27,6 +27,12 @@ abstract class AppointmentRepository {
 
   Future<void> cancel(Appointment appointment);
   Future<void> markCompleted(Appointment appointment);
+
+  Future<List<Appointment>> fetchByPatient({
+    required String patientId,
+    DateTime? since,
+    int limit = 20,
+  });
 }
 
 class FirestoreAppointmentRepository implements AppointmentRepository {
@@ -151,6 +157,25 @@ class FirestoreAppointmentRepository implements AppointmentRepository {
       'status': AppointmentStatus.completed.value,
       'updatedAt': Timestamp.fromDate(now),
     });
+  }
+
+  @override
+  Future<List<Appointment>> fetchByPatient({
+    required String patientId,
+    DateTime? since,
+    int limit = 20,
+  }) async {
+    Query<Map<String, dynamic>> query = _collection
+        .where('patientId', isEqualTo: patientId)
+        .orderBy('start', descending: true)
+        .limit(limit);
+
+    if (since != null) {
+      query = query.where('start', isGreaterThanOrEqualTo: Timestamp.fromDate(since));
+    }
+
+    final snapshot = await query.get();
+    return snapshot.docs.map(Appointment.fromDocument).toList(growable: false);
   }
 
   Future<void> _assertSlotAvailable({

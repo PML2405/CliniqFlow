@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 
 import 'package:cliniqflow/core/widgets/user_avatar.dart';
 import '../../patients/presentation/patient_directory_controller.dart';
@@ -60,24 +61,57 @@ class _CalendarSheet extends StatelessWidget {
   }
 }
 
-class _CalendarPage extends StatelessWidget {
-  const _CalendarPage({required this.controller});
+class _CalendarPage extends StatefulWidget {
+  const _CalendarPage({
+    required this.controller,
+    this.initialView = CalendarView.monthly,
+  });
 
   final AppointmentScheduleController controller;
+  final CalendarView initialView;
+
+  @override
+  State<_CalendarPage> createState() => _CalendarPageState();
+}
+
+class _CalendarPageState extends State<_CalendarPage> {
+  late CalendarView _currentView;
+
+  void initState() {
+    super.initState();
+    _currentView = widget.initialView;
+  }
+
+  void _handleViewChanged(CalendarView view) {
+    setState(() {
+      _currentView = view;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Calendar')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: _MonthlyCalendar(
-            controller: controller,
-            onDateSelected: () => Navigator.of(context).maybePop(),
+      appBar: AppBar(
+        title: const Text('Calendar'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: _CalendarViewToggle(
+              currentView: _currentView,
+              onChanged: _handleViewChanged,
+            ),
           ),
-        ),
+        ],
       ),
+      body: _currentView == CalendarView.weekly
+          ? _WeeklyCalendar(
+              controller: widget.controller,
+              onDateSelected: () => Navigator.of(context).pop(),
+            )
+          : _MonthlyCalendar(
+              controller: widget.controller,
+              onDateSelected: () => Navigator.of(context).pop(),
+            ),
     );
   }
 }
@@ -253,11 +287,7 @@ class _DailySummary extends StatelessWidget {
       builder: (context, constraints) {
         final maxWidth = constraints.maxWidth;
         final spacing = 12.0;
-        final columns = maxWidth >= 840
-            ? 4
-            : maxWidth >= 480
-            ? 2
-            : 1;
+        final columns = maxWidth >= 480 ? 2 : 1;
         final tileWidth = (maxWidth - spacing * (columns - 1)) / columns;
         final children = [
           _SummaryTile(
@@ -349,6 +379,45 @@ class _SummaryTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+enum CalendarView { weekly, monthly }
+
+class _CalendarViewToggle extends StatelessWidget {
+  const _CalendarViewToggle({
+    required this.currentView,
+    required this.onChanged,
+  });
+
+  final CalendarView currentView;
+  final ValueChanged<CalendarView> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SegmentedButton<CalendarView>(
+      segments: const [
+        ButtonSegment(
+          value: CalendarView.weekly,
+          label: Text('Week'),
+          icon: Icon(Icons.view_week, size: 18),
+        ),
+        ButtonSegment(
+          value: CalendarView.monthly,
+          label: Text('Month'),
+          icon: Icon(Icons.calendar_today, size: 18),
+        ),
+      ],
+      selected: {currentView},
+      onSelectionChanged: (Set<CalendarView> selection) {
+        onChanged(selection.first);
+      },
+      style: ButtonStyle(
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+        padding: MaterialStateProperty.all(EdgeInsets.zero),
       ),
     );
   }
@@ -470,7 +539,23 @@ class _MonthlyCalendarState extends State<_MonthlyCalendar> {
                     ],
                   ),
                 ),
-                SizedBox(height: isLandscape ? 8 : 12),
+                const SizedBox(height: 8),
+                _CalendarViewToggle(
+                  currentView: CalendarView.monthly,
+                  onChanged: (view) {
+                    if (view == CalendarView.weekly) {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (context) => _CalendarPage(
+                            controller: widget.controller,
+                            initialView: CalendarView.weekly,
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
                 Padding(
                   padding: gridPadding,
                   child: GridView.count(
@@ -544,6 +629,137 @@ class _MonthlyCalendarState extends State<_MonthlyCalendar> {
   }
 }
 
+class _WeeklyCalendar extends StatefulWidget {
+  const _WeeklyCalendar({required this.controller, this.onDateSelected});
+
+  final AppointmentScheduleController controller;
+  final VoidCallback? onDateSelected;
+
+  @override
+  State<_WeeklyCalendar> createState() => _WeeklyCalendarState();
+}
+
+class _WeeklyCalendarState extends State<_WeeklyCalendar> {
+  late DateTime _visibleWeekStart;
+  final _dateFormatter = DateFormat('d MMM');
+
+  @override
+  void initState() {
+    super.initState();
+    _visibleWeekStart = _startOfWeek(widget.controller.selectedDate);
+  }
+
+  @override
+  void didUpdateWidget(covariant _WeeklyCalendar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final selectedDate = widget.controller.selectedDate;
+    final currentWeekStart = _startOfWeek(selectedDate);
+    if (!_isSameWeek(currentWeekStart, _visibleWeekStart)) {
+      _visibleWeekStart = currentWeekStart;
+    }
+  }
+
+  DateTime _startOfWeek(DateTime date) {
+    return date.subtract(Duration(days: date.weekday - 1));
+  }
+
+  bool _isSameWeek(DateTime a, DateTime b) {
+    final startOfWeekA = _startOfWeek(a);
+    final startOfWeekB = _startOfWeek(b);
+    return startOfWeekA.difference(startOfWeekB).inDays == 0;
+  }
+
+  List<DateTime> _getWeekDays(DateTime weekStart) {
+    return List.generate(7, (index) => weekStart.add(Duration(days: index)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final weekDays = _getWeekDays(_visibleWeekStart);
+    final hasAppointments = weekDays.any(
+      (day) => widget.controller.appointmentsForDate(day).isNotEmpty,
+    );
+
+    return Card(
+      margin: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: () => setState(() {
+                    _visibleWeekStart = _visibleWeekStart.subtract(const Duration(days: 7));
+                  }),
+                ),
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      '${_dateFormatter.format(_visibleWeekStart)} - ${_dateFormatter.format(_visibleWeekStart.add(const Duration(days: 6)))}',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: () => setState(() {
+                    _visibleWeekStart = _visibleWeekStart.add(const Duration(days: 7));
+                  }),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.today),
+                  onPressed: () {
+                    setState(() {
+                      _visibleWeekStart = _startOfWeek(DateTime.now());
+                      widget.controller.setSelectedDate(DateTime.now());
+                    });
+                  },
+                  tooltip: 'Today',
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          if (!hasAppointments)
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Center(
+                child: Text(
+                  'No appointments scheduled for this week',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            )
+          else
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  for (final day in weekDays)
+                    _DayCell(
+                      date: day,
+                      controller: widget.controller,
+                      isInCurrentMonth: true, // Always show in weekly view
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                      fontScale: 1.0,
+                      onSelected: widget.onDateSelected,
+                      showAppointments: true,
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DayCell extends StatelessWidget {
   const _DayCell({
     required this.date,
@@ -552,6 +768,7 @@ class _DayCell extends StatelessWidget {
     required this.padding,
     required this.fontScale,
     this.onSelected,
+    this.showAppointments = false,
   });
 
   final DateTime? date;
@@ -560,6 +777,7 @@ class _DayCell extends StatelessWidget {
   final EdgeInsets padding;
   final double fontScale;
   final VoidCallback? onSelected;
+  final bool showAppointments;
 
   @override
   Widget build(BuildContext context) {
@@ -580,27 +798,84 @@ class _DayCell extends StatelessWidget {
         ? theme.colorScheme.primary
         : null;
 
-    return GestureDetector(
-      onTap: () {
-        controller.setSelectedDate(date!);
-        onSelected?.call();
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(12),
-          border: borderColor != null ? Border.all(color: borderColor) : null,
-        ),
-        alignment: Alignment.center,
-        padding: padding,
-        child: Text(
-          '${date!.day}',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: foregroundColor,
-            fontSize: (theme.textTheme.bodyMedium?.fontSize ?? 14) * fontScale,
+    final appointments = showAppointments
+        ? controller.appointmentsForDate(date!)
+        : [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GestureDetector(
+          onTap: () {
+            if (date != null) {
+              controller.setSelectedDate(date!);
+              onSelected?.call();
+            }
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(12),
+              border: borderColor != null ? Border.all(color: borderColor) : null,
+            ),
+            padding: padding,
+            child: Column(
+              children: [
+                Text(
+                  DateFormat('EEE').format(date!),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: foregroundColor,
+                    fontSize: (theme.textTheme.labelSmall?.fontSize ?? 12) * fontScale,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${date!.day}',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: foregroundColor,
+                    fontSize: (theme.textTheme.bodyMedium?.fontSize ?? 14) * fontScale,
+                    fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
+        if (showAppointments && appointments.isNotEmpty)
+          ...appointments.take(2).map((appointment) {
+            final time = TimeOfDay.fromDateTime(appointment.start).format(context);
+            return Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '$time • ${appointment.patientName.split(' ').first}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontSize: 10 * fontScale,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        if (showAppointments && appointments.length > 2)
+          Padding(
+            padding: const EdgeInsets.only(top: 2.0),
+            child: Text(
+              '+${appointments.length - 2} more',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontSize: 10 * fontScale,
+                color: theme.colorScheme.primary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+      ],
     );
   }
 }
@@ -707,6 +982,7 @@ class _AppointmentSchedulePageState extends State<AppointmentSchedulePage> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'scheduleFab',
         onPressed: () => _openEditor(context),
         icon: const Icon(Icons.add),
         label: const Text('Add appointment'),
